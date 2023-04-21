@@ -259,20 +259,10 @@ footer :: ModuleName -> TokenText -> Bool -> [Cat] -> CF -> String
 footer absName tokenText functor eps _cf = unlines $ concat
   [ [ "{"
     , ""
-    , "type Err = Either String"
+    , "type Err = Either [Token]"
     , ""
     , "happyError :: [" ++ tokenName ++ "] -> Err a"
-    , "happyError ts = Left $"
-    , "  \"syntax error at \" ++ tokenPos ts ++ "
-    , "  case ts of"
-    , "    []      -> []"
-    , "    [Err _] -> \" due to lexer error\""
-    , unwords
-      [ "    t:_     -> \" before `\" ++"
-      , "(prToken t)"
-      -- , tokenTextUnpack tokenText "(prToken t)"
-      , "++ \"'\""
-      ]
+    , "happyError = Left"
     , ""
     , "myLexer :: " ++ tokenTextType tokenText ++ " -> [" ++ tokenName ++ "]"
     , "myLexer = tokens"
