@@ -51,6 +51,7 @@ prelude name tokenText = concat
   , [ "import qualified Data.Bits"
     , "import Data.Char     (ord)"
     , "import Data.Function (on)"
+    , "import Data.List     (foldl')"
     , "import Data.Word     (Word8)"
     , "}"
     ]
@@ -136,7 +137,7 @@ restOfAlex tokenText cf = concat
     ]
   , [ "{"
     , "-- | Create a token with position."
-    , "tok :: (" ++ stringType ++ " -> Tok) -> (Posn -> " ++ stringType ++ " -> Token)"
+    , "tok :: (" ++ stringType ++ " -> Tok) -> (Range -> " ++ stringType ++ " -> Token)"
     , "tok f p = PT p . f"
     , ""
     , "-- | Token without position."
@@ -173,35 +174,26 @@ restOfAlex tokenText cf = concat
     , ""
     , "-- | Token with position."
     , "data Token"
-    , "  = PT  Posn Tok"
+    , "  = PT  Range Tok"
     , "  | Err Posn"
     , "  deriving (Eq, Show, Ord)"
     , ""
-    , "-- | Pretty print a position."
-    , "printPosn :: Posn -> String"
-    , "printPosn (Pn _ l c) = \"line \" ++ show l ++ \", column \" ++ show c"
-    , ""
-    , "-- | Pretty print the position of the first token in the list."
-    , "tokenPos :: [Token] -> String"
-    , "tokenPos (t:_) = printPosn (tokenPosn t)"
-    , "tokenPos []    = \"end of file\""
-    , ""
     , "-- | Get the position of a token."
-    , "tokenPosn :: Token -> Posn"
+    , "tokenPosn :: Token -> Range"
     , "tokenPosn (PT p _) = p"
-    , "tokenPosn (Err p)  = p"
+    , "tokenPosn (Err p)  = (p,p)"
     , ""
     , "-- | Get line and column of a token."
-    , "tokenLineCol :: Token -> (Int, Int)"
+    , "tokenLineCol :: Token -> ((Int, Int),(Int, Int))"
     , "tokenLineCol = posLineCol . tokenPosn"
     , ""
     , "-- | Get line and column of a position."
-    , "posLineCol :: Posn -> (Int, Int)"
-    , "posLineCol (Pn _ l c) = (l,c)"
+    , "posLineCol :: Range -> ((Int, Int),(Int, Int))"
+    , "posLineCol (Pn _ l1 c1 , Pn _ l2 c2) = ((l1,c1),(l2,c2))"
     , ""
     , "-- | Convert a token into \"position token\" form."
-    , "mkPosToken :: Token -> ((Int, Int), " ++ stringType ++ ")"
-    , "mkPosToken t = (tokenLineCol t, tokenText t)"
+    , "mkPosToken :: Token -> (Range, " ++ stringType ++ ")"
+    , "mkPosToken t = (tokenPosn t, tokenText t)"
     , ""
     , "-- | Convert a token to its text."
     , "tokenText :: Token -> " ++ stringType
@@ -271,11 +263,13 @@ restOfAlex tokenText cf = concat
     , "data Posn = Pn !Int !Int !Int"
     , "  deriving (Eq, Show, Ord)"
     , ""
+    , "type Range = (Posn,Posn)"
+    , ""
     , "alexStartPos :: Posn"
     , "alexStartPos = Pn 0 1 1"
     , ""
     , "alexMove :: Posn -> Char -> Posn"
-    , "alexMove (Pn a l c) '\\t' = Pn (a+1)  l     (((c+7) `div` 8)*8+1)"
+    , "-- alexMove (Pn a l c) '\\t' = Pn (a+1)  l     (((c+7) `div` 8)*8+1)"
     , "alexMove (Pn a l c) '\\n' = Pn (a+1) (l+1)   1"
     , "alexMove (Pn a l c) _    = Pn (a+1)  l     (c+1)"
     , ""
@@ -295,7 +289,9 @@ restOfAlex tokenText cf = concat
     , "                AlexEOF                   -> []"
     , "                AlexError (pos, _, _, _)  -> [Err pos]"
     , "                AlexSkip  inp' len        -> go inp'"
-    , "                AlexToken inp' len act    -> act pos (" ++ stringTake ++ " len str) : (go inp')"
+    , "                AlexToken inp' len act    -> act (pos,stop) next : (go inp') where"
+    , "                  next = " ++ stringTake ++ " len str"
+    , "                  stop = " ++ stringFoldl ++ " alexMove pos next"
     , ""
     , "alexGetByte :: AlexInput -> Maybe (Byte,AlexInput)"
     , "alexGetByte (p, c, (b:bs), s) = Just (b, (p, c, bs, s))"
@@ -334,11 +330,11 @@ restOfAlex tokenText cf = concat
     ]
   ]
   where
-  (stringType, stringTake, stringUncons, stringPack, stringUnpack, stringNilP, stringConsP) =
+  (stringType, stringTake, stringFoldl, stringUncons, stringPack, stringUnpack, stringNilP, stringConsP) =
     case tokenText of
-      StringToken     -> ("String",        "take",    "",          "id",      "id",        "[]",      "(c:s)"     )
-      ByteStringToken -> ("BS.ByteString", "BS.take", "BS.uncons", "BS.pack", "BS.unpack", "Nothing", "Just (c,s)")
-      TextToken       -> ("Data.Text.Text", "Data.Text.take", "Data.Text.uncons", "Data.Text.pack", "Data.Text.unpack", "Nothing", "Just (c,s)")
+      StringToken     -> ("String",         "take",           "foldl'",           "",          "id",      "id",        "[]",      "(c:s)"     )
+      ByteStringToken -> ("BS.ByteString",  "BS.take",        "BS.foldl'",        "BS.uncons", "BS.pack", "BS.unpack", "Nothing", "Just (c,s)")
+      TextToken       -> ("Data.Text.Text", "Data.Text.take", "Data.Text.foldl'", "Data.Text.uncons", "Data.Text.pack", "Data.Text.unpack", "Nothing", "Just (c,s)")
 
   apply :: String -> String -> String
   apply ""   s = s

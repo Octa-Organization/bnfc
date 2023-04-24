@@ -94,13 +94,19 @@ cf2Abstract Options{ lang, tokenText, generic, functor } name cf = vsep . concat
     , [ vcat
         [ "-- | Start position (line, column) of something."
         , ""
-        , "type" <+> posType <+> "=" <+> "C.Maybe (C.Int, C.Int)"
+        , "type" <+> posType <+> "=" <+> "C.Maybe ((C.Int, C.Int),(C.Int, C.Int))"
         , ""
         , "pattern" <+> noPosConstr <+> "::" <+> posType
         , "pattern" <+> noPosConstr <+> "=" <+> "C.Nothing"
         , ""
-        , "pattern" <+> posConstr <+> ":: C.Int -> C.Int ->" <+> posType
-        , "pattern" <+> posConstr <+> "line col =" <+> "C.Just (line, col)"
+        , "pattern" <+> posConstr <+> ":: ((C.Int,C.Int),(C.Int,C.Int)) ->" <+> posType
+        , "pattern" <+> posConstr <+> "p =" <+> "C.Just p"
+        , ""
+        , "rangeEnds :: " <+> posType <+> "->" <+> posType <+> "->" <+> posType
+        , "rangeEnds(" <+> posConstr <+> "(start,_)) (" <+> posConstr <+> "(_,stop)) = " <+> posConstr <+> "(start,stop)"
+        , "rangeEnds(" <+> posConstr <+> "(_,start)) " <+> noPosConstr <+> "=" <+> posConstr <+> "(start,start)"
+        , "rangeEnds" <+> noPosConstr <+> "(" <+> posConstr <+> "(_,stop)) =" <+> posConstr <+> "(stop,stop)"
+        , "rangeEnds" <+> noPosConstr <+> noPosConstr <+> "=" <+> noPosConstr <+> ""
         ]
       | defPosition
       ]

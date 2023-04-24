@@ -167,10 +167,13 @@ constructRule absName functor (Rule fun0 _cat rhs Parsable) = (pat, action)
     action
       | functor   = "(" ++ actionPos id ++ ", " ++ actionValue ++ ")"
       | otherwise = actionValue
-    actionPos paren = case rhs of
-      []          -> qualify noPosConstr
-      (Left _:_)  -> paren "fst $1"
-      (Right _:_) -> paren $ unwords [ "uncurry", qualify posConstr , "(tokenLineCol $1)" ]
+    actionPos paren =
+      let
+        f(Left _)  i = concat ["(fst $" , show i , ")"]
+        f(Right _) i = concat ["(" , qualify posConstr , "(tokenLineCol $" , show i , "))"]
+      in case rhs of
+        []          -> qualify noPosConstr
+        (first:_)  -> paren $ unwords[qualify "rangeEnds" , f first 1 , f (last rhs) (length rhs)]
     actionValue
       | isCoercion fun = unwords metavars
       | isNilCons  fun = unwords (qualify fun : metavars)
@@ -313,7 +316,7 @@ specialRules absName functor tokenText cf = unlines . intersperse "" . (`map` li
   where
     mkTypePart tokenCat = if functor then concat [ "(", qualify posType, ", ", tokenCat, ")" ] else tokenCat
     mkBodyPart tokenCat
-      | functor   = "(" ++ unwords ["uncurry", qualify posConstr, "(tokenLineCol $1)"] ++ ", " ++ mkValPart tokenCat ++ ")"
+      | functor   = "(" ++ unwords [qualify posConstr, "(tokenLineCol $1)"] ++ ", " ++ mkValPart tokenCat ++ ")"
       | otherwise = mkValPart tokenCat
     mkValPart tokenCat =
       case tokenCat of
