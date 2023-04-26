@@ -116,7 +116,7 @@ cf2Abstract Options{ lang, tokenText, generic, functor } name cf = vsep . concat
         [ "-- | Get the start position of something."
         , ""
         , "class" <+> hasPositionClass <+> "a where"
-        , nest 2 $ hasPositionMethod <+> ":: a ->" <+> posType
+        , nest 2 $ hasPositionMethod <+> ":: a d -> d"
         ]
       | hasPosition
       ]
@@ -236,7 +236,8 @@ instanceHasPositionData (cat, rules) = vcat . concat $
   , map (\ (c, args) -> nest 4 . hsep $ concat [ [text c, pos], "_" <$ args, ["->", pos] ]) rules
   ]
   where
-  dat = text $ catToStr cat
+  dat = prime $ text $ catToStr cat
+  prime = (<> "'")
   pos = "p"
 
 -- | Generate a newtype declaration for Ident types
